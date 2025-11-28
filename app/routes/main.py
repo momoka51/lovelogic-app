@@ -30,13 +30,13 @@ def calculate_love_stats(love_type):
     return [max(1, min(5, x)) for x in raw_list]
 
 # --- ☀️ 今日の恋愛天気予報（日替わり機能） ---
+# --- ☀️ 今日の恋愛天気予報（全タイプ対応版） ---
 def get_love_forecast():
-    # 1. 日本時間（JST）の現在時刻を取得（サーバーが海外でもズレないように！）
+    # 1. 日本時間（JST）の現在時刻を取得
     jst_now = datetime.utcnow() + timedelta(hours=9)
-    today_str = jst_now.strftime('%Y-%m-%d') # 例: "2025-11-28"
+    today_str = jst_now.strftime('%Y-%m-%d')
 
     # 2. 「今日の日付」を元に乱数生成器を作る
-    # これを使うと、同じ日付なら何度やっても必ず同じ結果が出る！
     rng = random.Random(today_str)
 
     weathers = [
@@ -46,18 +46,43 @@ def get_love_forecast():
         {"icon": "⚡", "status": "波乱の予感", "desc": "些細なことで喧嘩しそう。「余計な一言」に要注意！"},
         {"icon": "🌈", "status": "奇跡の予感", "desc": "まさかの再会や急展開があるかも！？身だしなみは完璧に。"},
     ]
-    lucky_types = ["忠犬ハチ公", "ボス猫", "隠れベイビー", "ライオン", "不思議生命体", "カリスマバランサー"]
-    caution_types = ["恋愛モンスター", "デビル天使", "管理者(ISTJ)", "論理学者(INTP)", "エンターテイナー(ESFP)"]
+
+    # 🔥 全16種類のラブタイプ
+    all_love_types = [
+        "忠犬ハチ公(FCPE)", "ボス猫(LCRO)", "隠れベイビー(LCRE)", "カリスマバランサー(LARE)",
+        "憧れの先輩(LARO)", "主役タイプ(LCPO)", "ツンデレヤンキー(LCPE)", "ライオン(LAPE)",
+        "パーフェクトカメレオン(LAPO)", "敏腕マネージャー(FARE)", "不思議生命体(FARO)", "恋愛モンスター(FCPO)",
+        "ちゃっかりうさぎ(FCRE)", "ロマンスマジシャン(FCRO)", "デビル天使(FAPO)", "最後の恋人(FAPE)"
+    ]
+
+    # 🔥 全16種類のMBTI
+    all_mbti_types = [
+        "建築家(INTJ)", "論理学者(INTP)", "指揮官(ENTJ)", "討論者(ENTP)",
+        "提唱者(INFJ)", "仲介者(INFP)", "主人公(ENFJ)", "広報運動家(ENFP)",
+        "管理者(ISTJ)", "擁護者(ISFJ)", "幹部(ESTJ)", "領事官(ESFJ)",
+        "巨匠(ISTP)", "冒険家(ISFP)", "起業家(ESTP)", "エンターテイナー(ESFP)"
+    ]
+
+    # 全部混ぜる！
+    all_types = all_love_types + all_mbti_types
     
-    # 3. rng.choice を使って選ぶ
-    selected = rng.choice(weathers)
+    # 3. 今日のラッキー＆注意タイプを選ぶ
+    # rng.choice でランダムに選出
+    lucky = rng.choice(all_types)
+    caution = rng.choice(all_types)
+
+    # もし同じのが選ばれたら、違うのになるまで選び直す
+    while caution == lucky:
+        caution = rng.choice(all_types)
+    
+    selected_weather = rng.choice(weathers)
     
     return {
-        "icon": selected["icon"], 
-        "status": selected["status"], 
-        "desc": selected["desc"],
-        "lucky": rng.choice(lucky_types), 
-        "caution": rng.choice(caution_types)
+        "icon": selected_weather["icon"], 
+        "status": selected_weather["status"], 
+        "desc": selected_weather["desc"],
+        "lucky": lucky, 
+        "caution": caution
     }
 
 # --- 🚦 ルート処理 ---
