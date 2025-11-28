@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スクショ相談 - Love Logic</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,400,1,0" />
+    <style>
+        :root {
+            --primary-color: #e91e63;
+            --primary-gradient: linear-gradient(135deg, #e91e63, #c2185b);
+            --secondary-color: #2c3e50;
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--secondary-color);
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 480px;
+            width: 100%;
+            background: var(--card-bg);
+            padding: 40px 30px;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        h1 {
+            color: var(--secondary-color);
+            font-size: 28px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .description {
+            color: #666;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        /* アップロードエリアのデザイン */
+        .upload-area {
+            display: block;
+            border: 3px dashed #dce4ec;
+            background-color: #f8fafc;
+            padding: 40px 20px;
+            border-radius: 16px;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            background-color: #fce4ec;
+            border-color: var(--primary-color);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .upload-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--secondary-color);
+        }
+        
+        .upload-subtext {
+            font-size: 14px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* プレビュー表示エリア */
+        #preview-box {
+            display: none; /* 初期状態は非表示 */
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        
+        #preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+
+        /* 送信ボタンのデザイン */
+        .submit-btn {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 18px 30px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            box-shadow: 0 8px 20px rgba(233, 30, 99, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(233, 30, 99, 0.4);
+        }
+        
+        .submit-btn:active {
+             transform: translateY(1px);
+             box-shadow: 0 4px 10px rgba(233, 30, 99, 0.3);
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            margin-top: 25px;
+            color: #666;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            transition: color 0.3s;
+            gap: 5px;
+        }
+        
+        .back-link:hover {
+            color: var(--primary-color);
+        }
+        
+        /* マテリアルアイコンの調整 */
+        .material-symbols-rounded {
+          font-variation-settings:
+          'FILL' 1,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 48
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>
+        <span class="material-symbols-rounded" style="font-size: 36px; color: var(--primary-color);">add_a_photo</span>
+        スクショで神返信作成
+    </h1>
+    <p class="description">LINEやDMのスクショをアップしてください。<br>先輩AIが解析して「正解の返信」を考えます！</p>
+
+    <form method="POST" enctype="multipart/form-data">
+        <label class="upload-area" id="upload-label">
+            <span class="material-symbols-rounded upload-icon">folder_open</span>
+            <span class="upload-text">タップして画像を選択</span>
+            <p class="upload-subtext">またはここにドラッグ＆ドロップ</p>
+            <input type="file" name="file" accept="image/*" required onchange="previewImage(this)">
+        </label>
+        
+        <div id="preview-box">
+            <p style="font-weight: bold; margin-bottom: 10px; color: var(--secondary-color);">✅ 選択中の画像：</p>
+            <img id="preview" src="">
+        </div>
+
+        <button type="submit" class="submit-btn">
+            この画像で相談する！
+            <span class="material-symbols-rounded">rocket_launch</span>
+        </button>
+    </form>
+    
+    <a href="/" class="back-link">
+        <span class="material-symbols-rounded">home</span>
+        トップに戻る
+    </a>
+</div>
+
+<script>
+    // 画像を選択したらプレビューを表示するJS
+    function previewImage(input) {
+        const previewBox = document.getElementById('preview-box');
+        const previewImage = document.getElementById('preview');
+        const uploadLabel = document.getElementById('upload-label');
+
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.src = e.target.result;
+                previewBox.style.display = 'block';
+                // 画像選択後はアップロードエリアの見た目を少し変える
+                uploadLabel.style.borderColor = '#e91e63';
+                uploadLabel.style.backgroundColor = '#fce4ec';
+            }
+            reader.readAsDataURL(input.files[0]);
+        } else {
+             previewBox.style.display = 'none';
+             uploadLabel.style.borderColor = '#dce4ec';
+             uploadLabel.style.backgroundColor = '#f8fafc';
+        }
+    }
+    
+    // ドラッグ＆ドロップの演出（見た目だけ）
+    const uploadArea = document.querySelector('.upload-area');
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, highlight, false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    function highlight(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.add('dragover');
+    }
+
+    function unhighlight(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.remove('dragover');
+    }
+</script>
+
+</body>
+</html>

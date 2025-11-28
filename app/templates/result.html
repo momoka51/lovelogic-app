@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>診断結果 - Love Logic</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Noto+Serif+JP:wght@700&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Libre+Barcode+39+Text&display=swap" rel="stylesheet">
+
+    <style>
+        /* ============================
+           基本スタイル
+        ============================ */
+        body { font-family: sans-serif; background-color: #fce4ec; color: #333; text-align: center; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #e91e63; }
+        .back-link { display: block; margin-top: 20px; color: #e91e63; text-decoration: none; font-weight: bold; }
+        .ai-content { text-align: left; line-height: 1.6; }
+        .ai-content h2, .ai-content h3 { color: #c2185b; border-bottom: 2px dashed #e91e63; padding-bottom: 5px; margin-top: 20px; }
+        hr { border: 0; border-top: 1px solid #eee; margin: 30px 0; }
+
+        /* 相性スコア */
+        .score-box {
+            background: linear-gradient(135deg, #fff0f5 0%, #ffe4e1 100%);
+            border: 3px solid #ff80ab; border-radius: 20px; padding: 20px; text-align: center; margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.3); animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .score-label { display: block; font-size: 14px; color: #e91e63; font-weight: bold; margin-bottom: 5px; letter-spacing: 1px; }
+        .score-value { font-size: 48px; font-weight: 900; color: #c2185b; text-shadow: 2px 2px 0px rgba(255,255,255,1); font-family: 'Arial Black', sans-serif; }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* OK/NGリスト */
+        .ok-ng-container { display: flex; flex-direction: column; gap: 15px; margin: 20px 0; }
+        .ok-box, .ng-box { padding: 15px 20px; border-radius: 12px; text-align: left; }
+        .ok-box { background-color: #e8f5e9; border: 2px solid #4caf50; color: #1b5e20; }
+        .ok-box h4 { margin: 0 0 10px 0; color: #2e7d32; font-size: 18px; border-bottom: 1px dashed #a5d6a7; padding-bottom: 5px; }
+        .ng-box { background-color: #ffebee; border: 2px solid #ef5350; color: #b71c1c; }
+        .ng-box h4 { margin: 0 0 10px 0; color: #c62828; font-size: 18px; border-bottom: 1px dashed #ef9a9a; padding-bottom: 5px; }
+        .ok-box ul, .ng-box ul { margin: 0; padding-left: 20px; }
+        .ok-box li, .ng-box li { margin-bottom: 5px; font-weight: bold; }
+
+        /* ============================
+           シェア機能コントロール
+        ============================ */
+        .share-controls { background: #f8f9fa; padding: 20px; border-radius: 15px; margin-bottom: 30px; text-align: left; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); }
+        .control-group { margin-bottom: 15px; }
+        .control-group label { font-weight: bold; display: block; margin-bottom: 8px; }
+        .radio-group { display: flex; flex-wrap: wrap; gap: 10px; }
+        .radio-label { background: white; border: 2px solid #eee; padding: 8px 15px; border-radius: 25px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 5px; font-weight: bold; color: #555; }
+        .radio-label:hover { background: #fff5f8; border-color: #ff80ab; }
+        input[type="radio"]:checked + .radio-label { background: #e91e63; border-color: #e91e63; color: white; box-shadow: 0 2px 8px rgba(233, 30, 99, 0.3); }
+        input[type="radio"] { display: none; }
+        .checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold; color: #555; }
+        input[type="checkbox"] { accent-color: #e91e63; transform: scale(1.2); }
+        .save-btn { background: linear-gradient(45deg, #e91e63, #ff80ab); color: white; border: none; padding: 15px 40px; font-size: 18px; font-weight: bold; border-radius: 50px; cursor: pointer; margin-top: 20px; width: 100%; box-shadow: 0 5px 20px rgba(233, 30, 99, 0.4); transition: transform 0.2s, box-shadow 0.2s; }
+        .save-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(233, 30, 99, 0.5); }
+        .save-btn:active { transform: translateY(1px); box-shadow: 0 2px 10px rgba(233, 30, 99, 0.3); }
+
+        /* ============================
+           画像生成コンテナ (共通)
+        ============================ */
+        /* 🔥 修正: パディングを少し狭くしました (30px -> 20px) */
+        #share-image-container { width: 100%; max-width: 380px; margin: 0 auto; aspect-ratio: 9 / 16; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif; transition: 0.5s all ease; }
+        .share-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; }
+        .design-header { text-align: center; font-weight: bold; text-transform: uppercase; }
+        /* 🔥 修正: 配置を space-between に変更し、幅を確保 */
+        .couple-info { display: flex; justify-content: space-between; align-items: center; margin: auto 0; width: 100%; }
+        .person { display: flex; flex-direction: column; align-items: center; flex: 1; /* 均等に幅を取る */ }
+        .person .role { font-size: 10px; letter-spacing: 2px; opacity: 0.8; margin-bottom: 5px; }
+        .person .name { font-size: 28px; font-weight: bold; line-height: 1.2; }
+        .person .type-detail { font-size: 12px; padding: 4px 10px; border-radius: 12px; margin-top: 8px; font-weight: bold; }
+        .connector { font-size: 20px; opacity: 0.6; padding: 0 10px; /* コネクタの余白を調整 */ }
+        .design-footer { text-align: center; font-size: 11px; opacity: 0.8; margin-top: auto; display: flex; flex-direction: column; gap: 5px; }
+
+        /* ============================
+           🎫 チケット風デザイン
+        ============================ */
+        .design-ticket { background-color: #f4e4c1; background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E"); color: #4a3b2a; font-family: 'Old Standard TT', serif; border-radius: 2px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); mask-image: radial-gradient(circle at 10px 50%, transparent 10px, black 10.5px), radial-gradient(circle at calc(100% - 10px) 50%, transparent 10px, black 10.5px); mask-position: -10px 0, 10px 0; mask-size: 100% 100%; mask-repeat: no-repeat; }
+        .design-ticket::before, .design-ticket::after { content: ""; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border: 3px solid #4a3b2a; pointer-events: none; opacity: 0.7; mask-image: url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='roughp'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.01' numOctaves='5' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='5'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='white' filter='url(%23roughp)'/%3E%3C/svg%3E"); }
+        .design-ticket::after { top: 14px; left: 14px; right: 14px; bottom: 14px; border-width: 1px; }
+        .design-ticket .share-content { flex-direction: row; padding: 0; }
+        /* 🔥 修正: 半券の幅を少し狭く (90px -> 80px) */
+        .design-ticket .ticket-left-stub { width: 80px; border-right: 3px dashed rgba(74, 59, 42, 0.5); display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.03); padding: 20px 5px; }
+        .design-ticket .stub-text { font-family: 'Abril Fatface', cursive; font-size: 24px; writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 3px; }
+        .design-ticket .stub-number { font-family: 'Space Mono', monospace; font-size: 14px; margin-top: 15px; writing-mode: vertical-rl; transform: rotate(180deg); }
+        /* 🔥 修正: メイン部分のパディングを狭く (30px 25px -> 25px 15px) */
+        .design-ticket .ticket-main { flex: 1; padding: 25px 15px; display: flex; flex-direction: column; }
+        .design-ticket .design-header { border-bottom: 3px double #4a3b2a; padding-bottom: 10px; margin-bottom: 20px; }
+        .design-ticket .header-text { font-family: 'Abril Fatface', cursive; font-size: 22px; letter-spacing: 1px; }
+        .design-ticket .header-sub { font-size: 10px; letter-spacing: 3px; opacity: 0.8; margin-top: 5px; display: block; }
+        /* 🔥 修正: 名前のフォントサイズを少し小さく (32px -> 28px) */
+        .design-ticket .person .name { font-family: 'Abril Fatface', cursive; font-size: 28px; text-transform: uppercase; }
+        .design-ticket .person .type-detail { background: #4a3b2a; color: #f4e4c1; }
+        .design-ticket .connector { font-family: 'Abril Fatface', cursive; margin: 0 5px; padding-bottom: 10px; font-size: 16px; }
+        .design-ticket .design-footer { flex-direction: row; justify-content: space-between; align-items: flex-end; }
+        .design-ticket .ticket-price { font-family: 'Abril Fatface', cursive; font-size: 14px; }
+        .design-ticket .date { font-family: 'Space Mono', monospace; font-size: 12px; }
+
+        /* ============================
+           🧾 レシート風デザイン (超かっこいいVer)
+        ============================ */
+        .design-receipt {
+            background-color: #f6f6f6;
+            background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+            color: #1a1a1a;
+            font-family: 'Space Mono', monospace;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            padding: 40px 30px;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+        .design-receipt::before, .design-receipt::after { content: ""; position: absolute; left: 0; width: 100%; height: 12px; background-size: 12px 12px; background-repeat: repeat-x; }
+        .design-receipt::before { top: -12px; background-image: linear-gradient(135deg, transparent 50%, #f6f6f6 50%), linear-gradient(45deg, #f6f6f6 50%, transparent 50%); }
+        .design-receipt::after { bottom: -12px; background-image: linear-gradient(45deg, transparent 50%, #f6f6f6 50%), linear-gradient(135deg, #f6f6f6 50%, transparent 50%); filter: drop-shadow(0 3px 3px rgba(0,0,0,0.1)); }
+        .design-receipt .design-header { font-size: 36px; margin-bottom: 5px; letter-spacing: -1px; font-weight: 700; line-height: 1; }
+        .design-receipt .receipt-meta { text-align: center; margin-bottom: 30px; border-bottom: 1px dashed #1a1a1a; padding-bottom: 15px; font-size: 12px; line-height: 1.5; color: #555; }
+        .design-receipt .couple-info { flex-direction: column; gap: 20px; margin: 20px 0; }
+        .design-receipt .person { width: 100%; flex-direction: row; justify-content: space-between; align-items: flex-end; padding-bottom: 5px; }
+        .design-receipt .person .role { font-size: 14px; font-weight: normal; color: #666; }
+        .design-receipt .person .name-group { text-align: right; }
+        .design-receipt .person .name { font-size: 24px; font-weight: 700; display: block; }
+        .design-receipt .person .type-detail { font-size: 12px; color: #1a1a1a; background: none; padding: 0; border: none; text-align: right; display: block; }
+        .design-receipt .total-section { width: 100%; display: flex; justify-content: space-between; font-size: 20px; font-weight: 700; border-top: 2px solid #1a1a1a; border-bottom: 2px solid #1a1a1a; padding: 12px 0; margin-top: 10px; }
+        .design-receipt .barcode { font-family: 'Libre Barcode 39 Text', cursive; font-size: 48px; transform: scaleY(1.3); margin: 25px 0 5px; opacity: 0.9; font-weight: normal; }
+        .design-receipt .thank-you { font-size: 12px; color: #555; margin-top: 5px; }
+        .design-receipt .app-name { font-size: 10px; color: #888; }
+
+        /* ============================
+           ⛩️ お守り風デザイン
+        ============================ */
+        .design-omamori { background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%, rgba(0,0,0,0.1) 100%), radial-gradient(circle at 50% 30%, #ff4081, #c2185b); background-size: 100% 100%, 200% 200%; color: #fff; font-family: 'Noto Serif JP', serif; clip-path: polygon(15% 0%, 85% 0%, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0% 85%, 0% 15%); padding: 50px 30px 30px; box-shadow: inset 0 5px 20px rgba(255,255,255,0.3), inset 0 -5px 20px rgba(0,0,0,0.3), 0 15px 35px rgba(194, 24, 91, 0.5); border: 4px solid transparent; border-image: linear-gradient(to bottom right, #ffd700, #ffecb3, #b8860b, #ffd700) 1; position: relative; }
+        .design-omamori::after { content: ""; position: absolute; top:0; left:0; width:100%; height:100%; background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0 L10 10 L20 0' fill='none' stroke='rgba(255,255,255,0.1)' stroke-width='1'/%3E%3C/svg%3E"); background-size: 10px 10px; opacity: 0.5; pointer-events: none; }
+        .design-omamori::before { content: ""; position: absolute; top: -75px; left: 50%; transform: translateX(-50%); width: 150px; height: 150px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M100,20 C120,20 140,40 140,70 C140,100 100,140 100,180 C100,140 60,100 60,70 C60,40 80,20 100,20 Z' fill='none' stroke='%23fce4ec' stroke-width='12' stroke-linecap='round'/%3E%3Cpath d='M100,35 C115,35 125,50 125,70 C125,95 100,125 100,155 C100,125 75,95 75,70 C75,50 85,35 100,35 Z' fill='none' stroke='%23e91e63' stroke-width='8' stroke-linecap='round'/%3E%3Ccircle cx='100' cy='70' r='15' fill='%23e91e63'/%3E%3Ccircle cx='100' cy='70' r='8' fill='%23f8bbd0'/%3E%3C/svg%3E"); background-size: contain; background-repeat: no-repeat; z-index: 10; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.3)); }
+        .design-omamori .design-header { font-size: 28px; margin: 40px 0 30px; letter-spacing: 8px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+        .design-omamori .header-text { writing-mode: vertical-rl; text-orientation: upright; margin: 0 auto; background: linear-gradient(to bottom, #ffd700, #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .design-omamori .couple-info { flex-direction: row; gap: 20px; }
+        .design-omamori .person { writing-mode: vertical-rl; text-orientation: upright; align-items: center; }
+        .design-omamori .person .role { font-size: 14px; margin-bottom: 10px; color: #ffd700; }
+        .design-omamori .person .name { font-size: 24px; letter-spacing: 3px; }
+        .design-omamori .person .type-detail { writing-mode: horizontal-tb; background: #ffd700; color: #c2185b; padding: 5px 15px; border-radius: 20px; margin-top: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .design-omamori .connector { writing-mode: vertical-rl; text-orientation: upright; font-size: 20px; color: #ffd700; margin: 0; }
+        .design-omamori .design-footer { flex-direction: row; justify-content: center; gap: 20px; margin-top: 30px; }
+        .design-omamori .footer-item { writing-mode: vertical-rl; text-orientation: upright; font-size: 12px; letter-spacing: 2px; }
+
+        /* デザインごとの表示制御 */
+        .ticket-only, .receipt-only, .omamori-only { display: none !important; }
+        .design-ticket .ticket-only { display: flex !important; }
+        .design-receipt .receipt-only { display: flex !important; flex-direction: column; }
+        .design-omamori .omamori-only { display: flex !important; }
+
+        /* ============================
+           📱 スマホ専用の微調整 (レスポンシブ)
+        ============================ */
+        @media (max-width: 400px) {
+            /* 画面が狭いスマホ用 */
+            .container { 
+                padding: 15px; /* 外側の余白を減らして画面を広く使う */
+            }
+            
+            #share-image-container { 
+                padding: 20px; /* 画像の中の余白も少し詰める */
+            }
+
+            /* 文字サイズを少しだけ小さくして収まりを良くする */
+            .design-header { font-size: 24px; } 
+            .person .name { font-size: 22px; }
+            .design-receipt .barcode { font-size: 36px; }
+        }
+
+        /* 名前が長すぎるときに改行してはみ出しを防ぐ */
+        .person .name {
+            word-wrap: break-word;      /* 長い単語を折り返す */
+            overflow-wrap: break-word;
+            max-width: 120px;           /* 横幅を制限 */
+            line-height: 1.1;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔮 診断結果</h1>
+    <p>お二人のタイプを受け取りました！</p>
+
+    <div class="result-box">
+        <h3>👤 あなた：{{ user_mbti }} × {{ user_love_type }}</h3>
+        <h3>❤️ お相手：{{ partner_mbti }} × {{ partner_love_type }}</h3>
+        
+        <hr>
+        
+        <div class="ai-content">
+            {{ diagnosis_result | safe }}
+        </div>
+
+        <hr>
+
+        <h3>📊 あなたの「恋愛ステータス」</h3>
+        <div style="max-width: 500px; margin: 0 auto;">
+            <canvas id="loveChart"></canvas>
+        </div>
+
+        <hr>
+
+        <h3>🤔 もっと詳しく聞きたい？</h3>
+        <p>診断結果を踏まえて、個別の悩みを相談しよう！</p>
+        <a href="/chat" style="display:block; background:#2c3e50; color:white; padding:15px; text-decoration:none; border-radius:10px; font-weight:bold;">
+            🐶 先輩AIに相談する（チャットへ）
+        </a>
+        <hr>
+
+        <h3>📸 SNSでシェア！カップル証明書</h3>
+        <p>世界に一つだけのデザインで、二人の相性を自慢しよう！</p>
+
+        <div class="share-controls">
+            <div class="control-group">
+                <label>デザインを選択：</label>
+                <div class="radio-group">
+                    <input type="radio" name="design" id="design-ticket" value="ticket" checked>
+                    <label for="design-ticket" class="radio-label">🎫 ヴィンテージ・チケット</label>
+                    
+                    <input type="radio" name="design" id="design-receipt" value="receipt">
+                    <label for="design-receipt" class="radio-label">🧾 カフェのレシート</label>
+                    
+                    <input type="radio" name="design" id="design-omamori" value="omamori">
+                    <label for="design-omamori" class="radio-label">⛩️ 錦織の御守り</label>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="hidePartnerName"> 相手の名前を隠す（イニシャル化）
+                </label>
+            </div>
+        </div>
+
+        <div id="share-image-container" class="design-ticket">
+            <div class="share-content">
+                
+                <div class="ticket-left-stub ticket-only">
+                    <div class="stub-text">ADMIT TWO</div>
+                    <div class="stub-number">No. {{ range(100000, 999999) | random }}</div>
+                </div>
+                <div class="ticket-main ticket-only">
+                    <div class="design-header">
+                        <span class="header-text">LOVE LOGIC CINEMA</span>
+                        <span class="header-sub">SPECIAL PREMIER PAIR TICKET</span>
+                    </div>
+                    <div class="couple-info">
+                        <div class="person me">
+                            <span class="role">STAR 1</span>
+                            <span class="name">{{ user_love_type.split('(')[0] }}</span>
+                            <span class="type-detail">{{ user_mbti }}</span>
+                        </div>
+                        <div class="connector">Is Starring With</div>
+                        <div class="person partner">
+                            <span class="role">STAR 2</span>
+                            <span class="name partner-full">{{ partner_love_type.split('(')[0] }}</span>
+                            <span class="name partner-initial" style="display:none;">???</span>
+                            <span class="type-detail">{{ partner_mbti }}</span>
+                        </div>
+                    </div>
+                    <div class="design-footer">
+                        <div class="date"><span class="currentDate"></span> SHOWING</div>
+                        <div class="ticket-price">$ PRICELESS LOVE</div>
+                    </div>
+                </div>
+
+                <div class="receipt-only" style="width: 100%;">
+                    <div class="design-header">LOVE LOGIC<br>CAFE</div>
+                    <div class="receipt-meta">
+                        DATETIME: <span class="currentDate"></span><br>
+                        ORDER NO: #{{ range(1000, 9999) | random }}<br>
+                        --------------------------------
+                    </div>
+                    <div class="couple-info">
+                        <div class="person me">
+                            <span class="role">ITEM 1</span>
+                            <div class="name-group">
+                                <span class="name">{{ user_love_type.split('(')[0] }}</span>
+                                <span class="type-detail">({{ user_mbti }})</span>
+                            </div>
+                        </div>
+                        <div class="person partner">
+                            <span class="role">ITEM 2</span>
+                            <div class="name-group">
+                                <span class="name partner-full">{{ partner_love_type.split('(')[0] }}</span>
+                                <span class="name partner-initial" style="display:none;">???</span>
+                                <span class="type-detail">({{ partner_mbti }})</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="total-section">
+                        <span>TOTAL</span>
+                        <span>PRICELESS</span>
+                    </div>
+                    <div class="design-footer">
+                        <div class="barcode">LOVE LOGIC</div>
+                        <div class="thank-you">THANK YOU FOR VISITING!</div>
+                        <div class="app-name">#LoveLogic診断</div>
+                    </div>
+                </div>
+
+                <div class="omamori-only" style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+                    <div class="design-header">
+                        <span class="header-text">恋愛成就御守</span>
+                    </div>
+                    <div class="couple-info" style="flex: 1;">
+                        <div class="person me">
+                            <span class="role">願主</span>
+                            <span class="name">{{ user_love_type.split('(')[0] }}</span>
+                            <span class="type-detail">{{ user_mbti }}</span>
+                        </div>
+                        <div class="connector">結</div>
+                        <div class="person partner">
+                            <span class="role">相手</span>
+                            <span class="name partner-full">{{ partner_love_type.split('(')[0] }}</span>
+                            <span class="name partner-initial" style="display:none;">???</span>
+                            <span class="type-detail">{{ partner_mbti }}</span>
+                        </div>
+                    </div>
+                    <div class="design-footer">
+                        <span class="footer-item">愛之理屈神社</span>
+                        <span class="footer-item"><span class="currentDate"></span> 吉日</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <button id="saveImageBtn" class="save-btn">画像を保存する ✨</button>
+        <p style="font-size: 10px; color: #888; margin-top: 5px;"></p>
+
+    </div>
+    <a href="/" class="back-link">🔙 もう一度診断する</a>
+</div>
+
+<script>
+    // --- 📊 グラフ描画 ---
+    const canvas = document.getElementById('loveChart');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        let chartData = {{ chart_data | tojson }};
+        if (!chartData || chartData.length === 0) { chartData = [3, 3, 3, 3, 3]; }
+
+        new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['メンヘラ度', '尽くし度', '浮気耐性', 'コミュ力', 'サイコパス度'],
+                datasets: [{
+                    label: 'あなたのステータス',
+                    data: chartData,
+                    backgroundColor: 'rgba(233, 30, 99, 0.2)',
+                    borderColor: 'rgba(233, 30, 99, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(233, 30, 99, 1)',
+                    pointRadius: 4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, aspectRatio: 1, scales: { r: { angleLines: { color: '#eee' }, grid: { color: '#eee' }, suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1, display: false }, pointLabels: { font: { size: 12, weight: 'bold' }, color: '#c2185b' } } } }
+        });
+    }
+
+    // --- 📸 シェア機能 ---
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '.');
+        document.querySelectorAll('.currentDate').forEach(el => el.textContent = dateStr);
+
+        const container = document.getElementById('share-image-container');
+        const partnerFull = document.querySelectorAll('.partner-full');
+        const partnerInitial = document.querySelectorAll('.partner-initial');
+
+        document.querySelectorAll('.radio-label').forEach(label => {
+            label.addEventListener('click', function() {
+                const radioId = this.getAttribute('for');
+                const radio = document.getElementById(radioId);
+                if (radio) {
+                    container.className = '';
+                    container.classList.add('design-' + radio.value);
+                }
+            });
+        });
+
+        document.getElementById('hidePartnerName').addEventListener('change', function() {
+            const isHidden = this.checked;
+            partnerFull.forEach(el => el.style.display = isHidden ? 'none' : 'inline');
+            partnerInitial.forEach(el => el.style.display = isHidden ? 'inline' : 'none');
+        });
+
+        document.getElementById('saveImageBtn').addEventListener('click', function() {
+            const btn = this;
+            btn.disabled = true; btn.textContent = '最高の一枚を現像中...📸';
+            html2canvas(container, { scale: 3, useCORS: true, backgroundColor: null, logging: false }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'lovelogic_certificate.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                btn.disabled = false; btn.textContent = '画像を保存する ✨';
+            }).catch(err => {
+                console.error(err); alert('保存に失敗しました😢');
+                btn.disabled = false; btn.textContent = '画像を保存する ✨';
+            });
+        });
+    });
+</script>
+
+</body>
+</html>

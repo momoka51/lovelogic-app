@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Love Logic - 恋愛攻略AI</title>
+    <style>
+        body { font-family: sans-serif; background-color: #fce4ec; color: #333; text-align: center; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #e91e63; }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select, input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+        button { background-color: #e91e63; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 50px; cursor: pointer; width: 100%; margin-top: 20px; font-weight: bold; }
+        button:hover { background-color: #c2185b; }
+
+        /* --- ☀️ 天気予報カードのデザイン (ここから追加) --- */
+        .forecast-card {
+            background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 0 30px 0;
+            color: #2c3e50;
+            box-shadow: 0 8px 20px rgba(161, 196, 253, 0.4);
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .forecast-header {
+            font-size: 14px;
+            font-weight: bold;
+            opacity: 0.8;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .forecast-main {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .weather-icon {
+            font-size: 50px;
+            line-height: 1;
+        }
+
+        .weather-info h2 {
+            margin: 0;
+            font-size: 24px;
+            color: #1a237e;
+        }
+
+        .weather-info p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .forecast-details {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 10px;
+            border-radius: 12px;
+        }
+
+        .detail-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .detail-item .label {
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        .detail-item.lucky .label { color: #e91e63; }
+        .detail-item.caution .label { color: #f57c00; }
+        .detail-item .value { font-weight: bold; }
+        
+        /* --- 💘 ローディングアニメーション --- */
+        #loading-overlay {
+            display: none; /* 最初は隠しておく */
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .heart-loader {
+            width: 120px;
+            height: 120px;
+            position: relative;
+            /* ハートの形に切り抜く魔法のコード */
+            clip-path: path('M60 120L19.5 76.2C6.3 62 0 46.2 0 32.5C0 14.2 13.8 0 32.5 0C44.8 0 54.3 8.3 60 16.7C65.7 8.3 75.2 0 87.5 0C106.2 0 120 14.2 120 32.5C120 46.2 113.7 62 100.5 76.2L60 120Z');
+            background: #eee; /* 空っぽの色 */
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .liquid {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, #e91e63, #ff80ab);
+            
+            /* 👇 ここを変えました！ */
+            /* forwards(停止) を infinite(無限ループ) に変更 */
+            animation: fill-heart 2.5s ease-in-out infinite;
+        }
+
+        /* 波打つエフェクト */
+        .liquid::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 40%;
+            animation: wave 2s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            color: #e91e63;
+            font-weight: bold;
+            font-size: 18px;
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes wave {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fill-heart {
+            0% { top: 100%; }
+            100% { top: 0%; }
+        }
+        
+        @keyframes pulse {
+            from { opacity: 0.6; }
+            to { opacity: 1; }
+        }
+
+    </style>
+
+</head>
+<body>
+
+<div id="loading-overlay">
+    <div class="heart-loader">
+        <div class="liquid"></div>
+    </div>
+    <p class="loading-text">AIが相性を分析中...💘</p>
+</div>
+
+<div class="container">
+    <h1>💘 Love Logic</h1>
+    <p>心理学×AIで、あなたの恋愛を科学する。</p>
+
+    <div class="forecast-card">
+        <div class="forecast-header">
+            <span class="forecast-date">📅 TODAY</span>
+            <span>今日の恋愛天気予報</span>
+        </div>
+        
+        <div class="forecast-main">
+            <div class="weather-icon">{{ forecast.icon }}</div>
+            <div class="weather-info">
+                <h2>{{ forecast.status }}</h2>
+                <p>{{ forecast.desc }}</p>
+            </div>
+        </div>
+
+        <div class="forecast-details">
+            <div class="detail-item lucky">
+                <span class="label">💖 ラッキー</span>
+                <span class="value">{{ forecast.lucky }}</span>
+            </div>
+            <div class="detail-item caution">
+                <span class="label">⚠️ 注意報</span>
+                <span class="value">{{ forecast.caution }}</span>
+            </div>
+        </div>
+    </div>
+    <form method="POST">
+        <h3>👤 あなたについて</h3>
+        <div class="form-group">
+            <label>あなたのMBTI</label>
+            <select name="user_mbti">
+                <option value="INTP">INTP (論理学者) - 貪欲な知識欲</option>
+                <option value="ENTJ">ENTJ (指揮官) - 大胆なリーダー</option>
+                <option value="ENTP">ENTP (討論者) - 好奇心旺盛</option>
+                <option value="INFJ">INFJ (提唱者) - 静かな理想主義者</option>
+                <option value="INFP">INFP (仲介者) - 親切な利他主義者</option>
+                <option value="ENFJ">ENFJ (主人公) - カリスマ指導者</option>
+                <option value="ENFP">ENFP (広報運動家) - 情熱的な独創家</option>
+                <option value="ISTJ">ISTJ (管理者) - 実直で論理的</option>
+                <option value="ISFJ">ISFJ (擁護者) - 献身的で温かい</option>
+                <option value="ESTJ">ESTJ (幹部) - 優秀な管理能力</option>
+                <option value="ESFJ">ESFJ (領事官) - 思いやりがあり社交的</option>
+                <option value="ISTP">ISTP (巨匠) - 大胆な実践家</option>
+                <option value="ISFP">ISFP (冒険家) - 柔軟な芸術家</option>
+                <option value="ESTP">ESTP (起業家) - 賢くエネルギッシュ</option>
+                <option value="ESFP">ESFP (エンターテイナー) - 自発的で多才</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>あなたのラブタイプ (4指標)</label>
+            <select name="user_love_type">
+                <option value="FCPE">FCPE (忠犬ハチ公) - 誠実×献身</option>
+                <option value="LCRO">LCRO (ボス猫) - 自由×現実</option>
+                <option value="LCRE">LCRE (隠れベイビー) - 誠実×愛嬌</option>
+                <option value="LARE">LARE (カリスマバランサー) - 調整×統率</option>
+                <option value="LARO">LARO (憧れの先輩) - 包容力×導き</option>
+                <option value="LCPO">LCPO (主役タイプ) - スター性</option>
+                <option value="LCPE">LCPE (ツンデレヤンキー) - 不器用な愛</option>
+                <option value="LAPE">LAPE (ライオン) - 王道の頼もしさ</option>
+                <option value="LAPO">LAPO (パーフェクトカメレオン) - 柔軟適応</option>
+                <option value="FARE">FARE (敏腕マネージャー) - 段取り上手</option>
+                <option value="FARO">FARO (不思議生命体) - 自由×直感</option>
+                <option value="FCPO">FCPO (恋愛モンスター) - 情熱×勢い</option>
+                <option value="FCRE">FCRE (ちゃっかりうさぎ) - 抜け感×現実</option>
+                <option value="FCRO">FCRO (ロマンスマジシャン) - ドラマチック</option>
+                <option value="FAPO">FAPO (デビル天使) - 小悪魔×翻弄</option>
+                <option value="FAPE">FAPE (最後の恋人) - 長期安定×ロマン</option>
+            </select>
+        </div>
+
+        <hr>
+
+        <h3>❤️ お相手について</h3>
+        <div class="form-group">
+            <label>相手のMBTI</label>
+            <select name="partner_mbti">
+                <option value="INTJ">INTJ (建築家) - 独創的で戦略的</option>
+                <option value="INTP">INTP (論理学者) - 貪欲な知識欲</option>
+                <option value="ENTJ">ENTJ (指揮官) - 大胆なリーダー</option>
+                <option value="ENTP">ENTP (討論者) - 好奇心旺盛</option>
+                <option value="INFJ">INFJ (提唱者) - 静かな理想主義者</option>
+                <option value="INFP">INFP (仲介者) - 親切な利他主義者</option>
+                <option value="ENFJ">ENFJ (主人公) - カリスマ指導者</option>
+                <option value="ENFP">ENFP (広報運動家) - 情熱的な独創家</option>
+                <option value="ISTJ">ISTJ (管理者) - 実直で論理的</option>
+                <option value="ISFJ">ISFJ (擁護者) - 献身的で温かい</option>
+                <option value="ESTJ">ESTJ (幹部) - 優秀な管理能力</option>
+                <option value="ESFJ">ESFJ (領事官) - 思いやりがあり社交的</option>
+                <option value="ISTP">ISTP (巨匠) - 大胆な実践家</option>
+                <option value="ISFP">ISFP (冒険家) - 柔軟な芸術家</option>
+                <option value="ESTP">ESTP (起業家) - 賢くエネルギッシュ</option>
+                <option value="ESFP">ESFP (エンターテイナー) - 自発的で多才</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>相手のラブタイプ</label>
+            <select name="partner_love_type">
+                <option value="FCPE">FCPE (忠犬ハチ公) - 誠実×献身</option>
+                <option value="LCRO">LCRO (ボス猫) - 自由×現実</option>
+                <option value="LCRE">LCRE (隠れベイビー) - 誠実×愛嬌</option>
+                <option value="LARE">LARE (カリスマバランサー) - 調整×統率</option>
+                <option value="LARO">LARO (憧れの先輩) - 包容力×導き</option>
+                <option value="LCPO">LCPO (主役タイプ) - スター性</option>
+                <option value="LCPE">LCPE (ツンデレヤンキー) - 不器用な愛</option>
+                <option value="LAPE">LAPE (ライオン) - 王道の頼もしさ</option>
+                <option value="LAPO">LAPO (パーフェクトカメレオン) - 柔軟適応</option>
+                <option value="FARE">FARE (敏腕マネージャー) - 段取り上手</option>
+                <option value="FARO">FARO (不思議生命体) - 自由×直感</option>
+                <option value="FCPO">FCPO (恋愛モンスター) - 情熱×勢い</option>
+                <option value="FCRE">FCRE (ちゃっかりうさぎ) - 抜け感×現実</option>
+                <option value="FCRO">FCRO (ロマンスマジシャン) - ドラマチック</option>
+                <option value="FAPO">FAPO (デビル天使) - 小悪魔×翻弄</option>
+                <option value="FAPE">FAPE (最後の恋人) - 長期安定×ロマン</option>
+            </select>
+        </div>
+
+        <button type="submit">AIで相性を診断する！✨</button>
+        <hr>
+        <h3>📸 LINEの返信に困ったら…</h3>
+        <a href="/upload" style="display:block; background:#673ab7; color:white; padding:15px; text-decoration:none; border-radius:50px; font-weight:bold; margin-top:10px;">
+            神返信メーカーを使う（スクショ解析）
+        </a>
+    </form>
+</div>
+
+</body>
+<script>
+    // フォームが送信されたらローディングを表示する関数
+    document.querySelector('form').addEventListener('submit', function(e) {
+        // ローディング画面を表示
+        document.getElementById('loading-overlay').style.display = 'flex';
+        
+        // (オプション) ボタンを連打できないように無効化しても良い
+        // this.querySelector('button[type="submit"]').disabled = true;
+    });
+</script>
+</html>
