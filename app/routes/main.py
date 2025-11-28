@@ -1,5 +1,6 @@
 import os
 import random
+from datetime import datetime, timedelta # 🕒 日付操作用に追加
 from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, request, current_app
 from app.logic.prompt_builder import create_diagnosis_prompt
@@ -7,63 +8,37 @@ from app.services.ai_service import get_ai_diagnosis, get_chat_response
 
 main_bp = Blueprint('main', __name__)
 
-# --- 📊 レーダーチャート計算ロジック（ここを極端に調整！） ---
+# --- 📊 レーダーチャート計算ロジック ---
 def calculate_love_stats(love_type):
-    """
-    ラブタイプ(4文字)からステータス(1~5)を算出
-    基準値を3として、文字によってガッツリ加点・減点する
-    """
-    # スタートは全部「3（普通）」
-    stats = {
-        "menhera": 3,   # メンヘラ度
-        "devotion": 3,  # 尽くし度
-        "cheating": 3,  # 浮気耐性（高いほど浮気しない）
-        "commu": 3,     # コミュ力
-        "psycho": 3     # サイコパス度
-    }
-    
-    type_str = str(love_type).upper() # 大文字に統一
+    """ラブタイプからステータス(1~5)を算出"""
+    stats = {"menhera": 3, "devotion": 3, "cheating": 3, "commu": 3, "psycho": 3}
+    type_str = str(love_type).upper()
 
-    # 1. 【L vs F】 主導権
-    if "L" in type_str: # Lead（俺様・姉御）
-        stats["commu"] += 1      # 引っ張る力
-        stats["psycho"] += 1     # 少し冷酷に見える
-        stats["devotion"] -= 1   # 尽くすより尽くされたい
-    elif "F" in type_str: # Follow（尽くす）
-        stats["devotion"] += 2   # 尽くし度爆上げ
-        stats["commu"] -= 1      # 受け身
+    if "F" in type_str: stats["devotion"] += 1; stats["commu"] -= 1
+    elif "L" in type_str: stats["commu"] += 1; stats["psycho"] += 1
 
-    # 2. 【C vs A】 愛情表現
-    if "C" in type_str: # Cuddly（デレデレ・甘えたい）
-        stats["menhera"] += 2    # メンヘラ度爆上げ
-        stats["devotion"] += 1   # 構ってちゃん
-        stats["psycho"] -= 1     # 情に厚い
-    elif "A" in type_str: # Accept（包容力）
-        stats["cheating"] += 1   # どっしり構える
-        stats["menhera"] -= 2    # メンヘラとは無縁
+    if "C" in type_str: stats["menhera"] += 2; stats["devotion"] += 1
+    elif "A" in type_str: stats["cheating"] += 1; stats["menhera"] -= 1
 
-    # 3. 【R vs P】 価値観
-    if "P" in type_str: # Passionate（情熱・刺激）
-        stats["menhera"] += 1    # 感情の起伏が激しい
-        stats["cheating"] -= 1   # 刺激を求めて浮気しがち
-    elif "R" in type_str: # Realistic（現実・安定）
-        stats["cheating"] += 1   # リスクを冒さない
-        stats["psycho"] += 1     # 合理的すぎる一面も
+    if "P" in type_str: stats["menhera"] += 1; stats["cheating"] -= 1
+    elif "R" in type_str: stats["cheating"] += 1; stats["psycho"] += 1
 
-    # 4. 【O vs E】 誠実さ
-    if "E" in type_str: # Earnest（真面目・一途）
-        stats["cheating"] += 2   # 浮気耐性MAX
-        stats["psycho"] -= 1     # 人の痛みがわかる
-    elif "O" in type_str: # Optimistic（楽観・自由）
-        stats["commu"] += 2      # 誰とでも仲良くなる
-        stats["cheating"] -= 2   # 浮気リスク激高（要注意！）
+    if "E" in type_str: stats["cheating"] += 2; stats["psycho"] -= 1
+    elif "O" in type_str: stats["commu"] += 2; stats["cheating"] -= 2
 
-    # リスト形式に変換（1未満は1に、5以上は5に制限する）
     raw_list = [stats["menhera"], stats["devotion"], stats["cheating"], stats["commu"], stats["psycho"]]
     return [max(1, min(5, x)) for x in raw_list]
 
-# --- ☀️ 天気予報ロジック ---
+# --- ☀️ 今日の恋愛天気予報（日替わり機能） ---
 def get_love_forecast():
+    # 1. 日本時間（JST）の現在時刻を取得（サーバーが海外でもズレないように！）
+    jst_now = datetime.utcnow() + timedelta(hours=9)
+    today_str = jst_now.strftime('%Y-%m-%d') # 例: "2025-11-28"
+
+    # 2. 「今日の日付」を元に乱数生成器を作る
+    # これを使うと、同じ日付なら何度やっても必ず同じ結果が出る！
+    rng = random.Random(today_str)
+
     weathers = [
         {"icon": "☀️", "status": "恋愛日和", "desc": "今日は攻めの姿勢でOK！気になるあの子に連絡してみよう。"},
         {"icon": "⛅", "status": "曇りのち晴れ", "desc": "午前中は様子見が吉。夕方以降にチャンス到来かも？"},
@@ -71,12 +46,18 @@ def get_love_forecast():
         {"icon": "⚡", "status": "波乱の予感", "desc": "些細なことで喧嘩しそう。「余計な一言」に要注意！"},
         {"icon": "🌈", "status": "奇跡の予感", "desc": "まさかの再会や急展開があるかも！？身だしなみは完璧に。"},
     ]
-    lucky_types = ["忠犬ハチ公", "ボス猫", "隠れベイビー", "ライオン", "不思議生命体"]
+    lucky_types = ["忠犬ハチ公", "ボス猫", "隠れベイビー", "ライオン", "不思議生命体", "カリスマバランサー"]
     caution_types = ["恋愛モンスター", "デビル天使", "管理者(ISTJ)", "論理学者(INTP)", "エンターテイナー(ESFP)"]
-    selected = random.choice(weathers)
+    
+    # 3. rng.choice を使って選ぶ
+    selected = rng.choice(weathers)
+    
     return {
-        "icon": selected["icon"], "status": selected["status"], "desc": selected["desc"],
-        "lucky": random.choice(lucky_types), "caution": random.choice(caution_types)
+        "icon": selected["icon"], 
+        "status": selected["status"], 
+        "desc": selected["desc"],
+        "lucky": rng.choice(lucky_types), 
+        "caution": rng.choice(caution_types)
     }
 
 # --- 🚦 ルート処理 ---
@@ -111,10 +92,10 @@ def index():
         # 2. プロンプト作成
         prompt = create_diagnosis_prompt(user_data, partner_data)
 
-        # 3. AI診断
+        # 3. AI診断（本番AI）
         ai_result_text = get_ai_diagnosis(prompt, user_data, partner_data)
 
-        # 4. 🔥 ここで新しい計算ロジックを使う！
+        # 4. グラフ用の数値を計算
         user_stats = calculate_love_stats(user_data['love_type'])
 
         # 5. 結果表示
@@ -125,32 +106,26 @@ def index():
                                partner_love_type=partner_data['love_type'],
                                diagnosis_result=ai_result_text,
                                forecast=forecast,
-                               chart_data=user_stats) # グラフデータを渡す
+                               chart_data=user_stats)
 
     return render_template('index.html', forecast=forecast)
 
 # --- チャット機能 ---
 chat_history = [{"role": "ai", "text": "よう！診断結果はどうだった？相談に乗るぞ！👍"}]
 
-# app/routes/main.py の chat関数部分
-
 @main_bp.route('/chat', methods=['GET', 'POST'])
 def chat():
     if request.method == 'POST':
         user_msg = request.form.get('user_message')
-        
-        # 1. ユーザーのメッセージを履歴に追加
         chat_history.append({"role": "user", "text": user_msg})
         
-        # 🔥 修正ポイント：メッセージ単体ではなく「chat_history（履歴全体）」を渡す！
+        # 履歴全体とコンテキストを渡す（修正済み）
         ai_msg = get_chat_response(chat_history, context=current_context)
         
-        # 2. AIのメッセージを履歴に追加
         chat_history.append({"role": "ai", "text": ai_msg})
-        
         return render_template('chat.html', messages=chat_history)
-    
     return render_template('chat.html', messages=chat_history)
+
 # --- 画像アップロード機能 ---
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 def allowed_file(filename):
@@ -167,6 +142,7 @@ def upload():
         save_path = os.path.join(current_app.root_path, 'uploads', filename)
         file.save(save_path)
 
+        # ダミーの解析結果（実際はここもAI化可能）
         ai_reply = """
         <h3>🧐 解析完了！</h3>
         <p>これは「駆け引き」の局面だな。焦らず以下の案で返信だ！</p>
